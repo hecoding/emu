@@ -22,11 +22,11 @@ func (m *Memory) loadROM(filepath string) {
 	m.cart = data
 }
 
-func (m *Memory) readOperation(i uint16) uint8 {
+func (m *Memory) readByte(i uint16) uint8 {
 	return m.cart[i]
 }
 
-func (m *Memory) readAddress(i uint16) uint16 {
+func (m *Memory) read2Bytes(i uint16) uint16 {
 	a := uint16(m.cart[i])
 	b := uint16(m.cart[i + 1])
 	b = b << 4

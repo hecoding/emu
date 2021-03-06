@@ -5,6 +5,7 @@ import "fmt"
 type Register struct {
 	a, f, b, c, d, e, h, l uint8
 	sp, pc uint16
+	flags uint8
 }
 
 func join8to16(a, b uint8) uint16 {
@@ -67,14 +68,24 @@ func (r *Register) getSP() uint16 {
 
 type CPU struct {
 	register Register
-	flags uint8
 	regList []*uint8
 	doubleRegList1 []func() uint16
 }
 
-func (cpu *CPU) step(mem *Memory) {
-	op := mem.readOperation(cpu.register.pc)
+func (cpu *CPU) readInstruction(mem *Memory) uint8 {
+	op := mem.readByte(cpu.register.pc)
 	cpu.register.pc++
+	return op
+}
+
+func (cpu *CPU) readOperand(mem *Memory) uint16 {
+	n := mem.read2Bytes(cpu.register.pc)
+	cpu.register.pc += 2
+	return n
+}
+
+func (cpu *CPU) step(mem *Memory) {
+	op := cpu.readInstruction(mem)
 	cpu.exec(op, mem)
 }
 
@@ -82,7 +93,7 @@ func (cpu *CPU) exec(op uint8, mem *Memory) {
 	fmt.Printf("%d %x %b\n", op, op, op)
 
 	switch op {
-	case 0x9, 0x19, 0x29, 0x39:
+	case 0x9, 0x19, 0x29, 0x39: // add hl, n
 		p := op >> 4 & 3
 		val := cpu.doubleRegList1[p]()
 		result := cpu.register.getHL() + val
@@ -90,7 +101,7 @@ func (cpu *CPU) exec(op uint8, mem *Memory) {
 		cpu.register.setHL(result)
 
 	case 0xc3: // jp nn
-		nn := mem.readAddress(cpu.register.pc)
+		nn := cpu.readOperand(mem)
 		cpu.register.pc = nn
 	default:
 		if op != 0 { // if not noop
@@ -119,10 +130,37 @@ func (cpu *CPU) exec(op uint8, mem *Memory) {
 	//}
 }
 
-func jump(x uint8) {
+const (
+	flagZero = 1 << 7
+	flagNegative = 1 << 6
+	flagHalfCarry = 1 << 5
+	flagCarry = 1 << 4
+)
 
+func flagIsZero(r *Register) uint8 {
+	return r.flags & flagZero
 }
 
-func add(x, y uint8) uint8 {
-	return x + y
+func flagIsNegative(r *Register) uint8 {
+	return r.flags & flagNegative
+}
+
+func flagIsHalfCarry(r *Register) uint8 {
+	return r.flags & flagHalfCarry
+}
+
+func flagIsCarry(r *Register) uint8 {
+	return r.flags & flagCarry
+}
+
+func flagIsSet(r *Register, x uint8) uint8 {
+	return r.flags & x
+}
+
+func flagSet(r *Register, x uint8) {
+	r.flags |= x
+}
+
+func flagClear(r *Register, x uint8) {
+	r.flags &= ^x
 }
