@@ -5,7 +5,6 @@ import "fmt"
 type Register struct {
 	a, f, b, c, d, e, h, l uint8
 	sp, pc uint16
-	flags uint8
 }
 
 func join8to16(a, b uint8) uint16 {
@@ -95,8 +94,13 @@ func (cpu *CPU) exec(op uint8, mem *Memory) {
 	switch op {
 	case 0x9, 0x19, 0x29, 0x39: // add hl, n
 		p := op >> 4 & 3
+		register := cpu.register.getHL()
 		val := cpu.doubleRegList1[p]()
-		result := cpu.register.getHL() + val
+		result := register + val
+
+		cpu.register.clearFlag(negativeFlag)
+		cpu.register.checkHalfCarryFlag(register, val)
+		cpu.register.checkCarryFlag(result)
 
 		cpu.register.setHL(result)
 
@@ -108,59 +112,67 @@ func (cpu *CPU) exec(op uint8, mem *Memory) {
 			panic(op)
 		}
 	}
+}
 
+func (r *Register) clearFlag(flag uint8) {
+	r.f &= ^flag
+}
 
+func (r *Register) setFlag(flag uint8) {
+	r.f |= flag
+}
 
-	//y := op >> 3 & 7
-	//z := op & 7
-	//dst := cpu.regList[int(y)]
-	//src := cpu.regList[int(z)]
-	//
-	//switch x := op >> 6; x {
-	//case 0:
-	//	fmt.Println("0")
-	//case 1:
-	//	fmt.Println("1")
-	//case 2:
-	//	fmt.Println("2") // alu
-	//	//dst = add(*dst, *src)
-	//case 3: // jumps and loads
-	//	fmt.Println("3")
-	//	*dst = add(*dst, *src)
-	//}
+func (r *Register) checkHalfCarryFlag(register uint16, value uint16) {
+	if isHalfCarry(register, value) {
+		r.setFlag(halfCarryFlag)
+	} else {
+		r.clearFlag(halfCarryFlag)
+	}
+}
+
+func (r *Register) checkCarryFlag(result uint16) {
+	if result & 0xff00 != 0 {
+		r.setFlag(carryFlag)
+	} else {
+		r.clearFlag(carryFlag)
+	}
 }
 
 const (
-	flagZero = 1 << 7
-	flagNegative = 1 << 6
-	flagHalfCarry = 1 << 5
-	flagCarry = 1 << 4
+	zeroFlag = 1 << 7
+	negativeFlag = 1 << 6
+	halfCarryFlag = 1 << 5
+	carryFlag = 1 << 4
 )
 
-func flagIsZero(r *Register) uint8 {
-	return r.flags & flagZero
+func isHalfCarry(a, b uint16) bool {
+	return ((a & 0x0f) + (b & 0x0f)) > 0x0f
 }
 
-func flagIsNegative(r *Register) uint8 {
-	return r.flags & flagNegative
-}
-
-func flagIsHalfCarry(r *Register) uint8 {
-	return r.flags & flagHalfCarry
-}
-
-func flagIsCarry(r *Register) uint8 {
-	return r.flags & flagCarry
-}
-
-func flagIsSet(r *Register, x uint8) uint8 {
-	return r.flags & x
-}
-
-func flagSet(r *Register, x uint8) {
-	r.flags |= x
-}
-
-func flagClear(r *Register, x uint8) {
-	r.flags &= ^x
-}
+//func flagIsZero(r *Register) uint8 {
+//	return r.flags & zeroFlag
+//}
+//
+//func flagIsNegative(r *Register) uint8 {
+//	return r.flags & negativeFlag
+//}
+//
+//func flagIsHalfCarry(r *Register) uint8 {
+//	return r.flags & halfCarryFlag
+//}
+//
+//func flagIsCarry(r *Register) uint8 {
+//	return r.flags & carryFlag
+//}
+//
+//func flagIsSet(r *Register, x uint8) uint8 {
+//	return r.flags & x
+//}
+//
+//func flagSet(r *Register, x uint8) {
+//	r.flags |= x
+//}
+//
+//func flagClear(r *Register, x uint8) {
+//	r.flags &= ^x
+//}
