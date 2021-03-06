@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Register struct {
 	a, f, b, c, d, e, h, l uint8
 	sp, pc uint16
@@ -57,4 +59,31 @@ func (r *Register) setHL(x uint16) {
 	a, b := split16to8(x)
 	r.l = a
 	r.h = b
+}
+
+type CPU struct {
+	register Register
+	flags uint8
+}
+
+func (cpu *CPU) step(mem *Memory) {
+	op := mem.readOperation(cpu.register.pc)
+	cpu.exec(op)
+}
+
+func (cpu *CPU) exec(op uint8) {
+	fmt.Printf("%d %x %b\n", op, op, op)
+	switch x := op>>6; x {
+	case 0:
+		fmt.Println("0")
+	case 1:
+		fmt.Println("1")
+	case 2:
+		fmt.Println("2")
+	case 3: // jumps and loads
+		switch z := op & 0b00000111; z {
+		case 0:
+			fmt.Println("0")
+		}
+	}
 }
